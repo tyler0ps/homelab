@@ -1,0 +1,38 @@
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfplan
+.terraform.lock.hcl
+terraform.tfvars
+!terraform.tfvars.example
+
+# Talos — generated configs (re-create with talhelper genconfig)
+talos/clusterconfig/
+
+# Raw (unencrypted) secrets — SOPS-encrypted versions are committed instead
+talos/talsecret.yaml
+*.talosconfig
+talosconfig
+
+# Kubernetes — local kubeconfig never committed
+kubeconfig
+*.kubeconfig
+
+# Age / SOPS keys — never committed
+*.key
+!*.key.pub
+age.key
+
+# direnv — local env vars with real secrets
+.envrc
+.direnv/
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
