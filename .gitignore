@@ -36,3 +36,5 @@ age.key
 .idea/
 *.swp
 *.swo
+
+.env
