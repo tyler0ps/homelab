@@ -1,0 +1,29 @@
+# App of Apps — root ArgoCD Application that manages all other apps.
+# After ArgoCD is running, apply this once:
+#   kubectl apply -f kubernetes/bootstrap/root-app/application.yaml
+# ArgoCD will then sync everything under kubernetes/apps/ automatically.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  # Prevent ArgoCD from deleting this app if it's removed from git
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    # Replace with your actual GitHub repo URL
+    repoURL: https://github.com/tyler0ps/homelab.git
+    targetRevision: HEAD
+    path: kubernetes/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
