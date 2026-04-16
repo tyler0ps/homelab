@@ -8,7 +8,7 @@ terraform.tfvars
 !terraform.tfvars.example
 
 # Talos — generated configs (re-create with talhelper genconfig)
-talos/clusterconfig/
+talos/
 
 # Raw (unencrypted) secrets — SOPS-encrypted versions are committed instead
 talos/talsecret.yaml
