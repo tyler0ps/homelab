@@ -4,7 +4,7 @@ resource "proxmox_vm_qemu" "talos" {
   agent = 1
   boot  = "order=virtio0;ide2;net0"
   cpu { cores = each.value.role == "worker" ? 4 : 2 }
-  memory      = each.value.role == "worker" ? 8192 : 4096
+  memory      = each.value.role == "worker" ? 16384 : 4096
   name        = each.key
   scsihw      = "virtio-scsi-single"
   target_node = each.value.target_node
@@ -21,8 +21,8 @@ resource "proxmox_vm_qemu" "talos" {
     virtio {
       virtio0 {
         disk {
-          size    = "30G"
-          storage = "local"
+          size    = each.value.disk_size
+          storage = each.value.disk_storage
         }
       }
     }
