@@ -1,0 +1,15 @@
+apiVersion: cilium.io/v2alpha1
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  name: default-l2-policy
+spec:
+  # Which nodes can announce LoadBalancer IPs
+  nodeSelector:
+    matchExpressions:
+    - key: node-role.kubernetes.io/control-plane
+      operator: DoesNotExist
+  # Which interfaces to use for ARP announcements
+  interfaces:
+  - ^ens[0-9]+
+  externalIPs: true
+  loadBalancerIPs: true
