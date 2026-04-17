@@ -54,7 +54,7 @@ spec:
                 name: ddns-route53
                 key: HOSTED_ZONE_ID
           - name: DDNSR53_ROUTE53_RECORDSSET_0_NAME
-            value: sso.tylerops.dev.
+            value: auth.tylerops.dev.
           - name: DDNSR53_ROUTE53_RECORDSSET_0_TYPE
             value: A
           - name: DDNSR53_ROUTE53_RECORDSSET_0_TTL

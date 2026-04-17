@@ -1,4 +1,12 @@
+stores:
+  yaml:
+    indent: 2
+
 creation_rules:
   - path_regex: .*secret\.yaml$
     encrypted_regex: ^(data|stringData)$
+    age: age1ngzn99y6lskxmkvlt2zpfcdwpfhk6dgwpkp7f39t5tplk4nrf40s7k826s
+
+  - path_regex: .*values\.yaml$
+    encrypted_regex: ^(secret_key|password)$
     age: age1ngzn99y6lskxmkvlt2zpfcdwpfhk6dgwpkp7f39t5tplk4nrf40s7k826s

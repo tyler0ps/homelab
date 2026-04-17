@@ -1,0 +1,50 @@
+authentik:
+  secret_key: ENC[AES256_GCM,data:Xh7QDw0Lpai3fbzzzd949VjE+paMduT0DVHBRrFNvGvbI56g9dI9I5x4Qx9dakqIFkmsVRmDM5hodr6GYjiDVdCpcl7DvtAMUCgDzyNAkto=,iv:0saC2/qTkHFHpR48NKg/gwPAevKqXe5aYrk3RCdCy+U=,tag:+zxNTParNzsnnk9x2XzYqw==,type:str]
+  error_reporting:
+    enabled: false
+  postgresql:
+    host: postgres-cluster-rw.database.svc.cluster.local
+    user: authentik
+    name: authentik
+    password: ENC[AES256_GCM,data:nxixV9dkUuzb4JqAw18Xlz/n3jfjTI6x088x42e62qbipo0H3Nx8WofqRkRhyswT,iv:fgoqSpv5a/2Ili+PhIYjnP6WPapEmyYw44Hvo3g2I7E=,tag:8ejDRcs1qICY/Sb4xjYFIA==,type:str]
+global:
+  env:
+    - name: AUTHENTIK_LISTEN__TRUSTED_PROXY_CIDRS
+      value: 10.0.0.0/8,192.168.0.0/16
+server:
+  ingress:
+    ingressClassName: cilium
+    enabled: false
+    hosts:
+      - auth.tylerops.dev
+  route:
+    main:
+      enabled: true
+      hostnames:
+        - auth.tylerops.dev
+      parentRefs:
+        - name: main-gateway
+          namespace: default
+      filters:
+        - type: RequestHeaderModifier
+          requestHeaderModifier:
+            set:
+              - name: X-Forwarded-Proto
+                value: https
+postgresql:
+  enabled: false
+sops:
+  age:
+    - recipient: age1ngzn99y6lskxmkvlt2zpfcdwpfhk6dgwpkp7f39t5tplk4nrf40s7k826s
+      enc: |
+        -----BEGIN AGE ENCRYPTED FILE-----
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSB5TDBwSUxmOWZqTE5OdWtq
+        NDJOZXViZmlqTEZlbmtQZ2F0S1FQVEQrWGxvClJNQlJGaE84NDBqMmNLYTBZdzVx
+        bXdXRWtwbm95NnRKSXJlZVBnNUJMYzAKLS0tIFZaQkxIWEpCMUNGTUR4ZTM4UkFq
+        UkFGZjNreTZnMTBOZmYvdXVCT2l6VkUKeRbQW/tuXeTzANLymb/PPNqY3I1zZzzb
+        d4XTbflJa3bAi93+K1RJjQ0Mw5pOx3yTpnxZ7WoW1biss+2iSGHOvQ==
+        -----END AGE ENCRYPTED FILE-----
+  lastmodified: "2026-04-17T14:39:26Z"
+  mac: ENC[AES256_GCM,data:pLD7QFImA8Qjeo9xduTt6EhuZ/tVVzTQvm99NVe/akzy/qDsUY1cKriWBt7vIKLDAoWLPUnDFiB9BkenkR6SFeQ3dVEhtOsNYz8U7wsOzUMb2xnJOqCsBlOpPNSujR0QYV1x/CwJQxj1mMFZOP9hwjKFTPQynntqdVobG0xoItI=,iv:j/5EtNOewQdukgjyFHGLNr5p/dixF91RcNeNNJWxHFc=,tag:hpaeVrK1OwQpZy64Z0jn/g==,type:str]
+  encrypted_regex: ^(secret_key|password)$
+  version: 3.12.2
