@@ -62,3 +62,10 @@ Test Gateway and HTTPRoute
 ```bash
 curl -H "Host: sso.tylerops.dev" 192.168.1.192
 ```
+
+Clean httproute, keep main-gateway
+```bash
+k delete -f kubernetes/cilium-loadbalancer/httproute-sso.yaml
+```
+
+## In the end, clean up any testing httproutes and services.
