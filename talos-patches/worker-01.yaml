@@ -1,0 +1,13 @@
+machine:
+  network:
+    hostname: worker-01
+    interfaces:
+      - interface: ens18
+        addresses:
+          - 192.168.1.47/24
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 192.168.1.1
+    nameservers:
+      - 1.1.1.1
+      - 8.8.8.8

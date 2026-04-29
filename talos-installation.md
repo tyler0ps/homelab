@@ -13,8 +13,8 @@ Add VMs
 ```bash
 tf apply
 ```
-> 3 CP node IPs are .41 .42 .43
-> 2 Worker node IPs are .44 .45
+
+> VMs come up with DHCP IPs initially. The static IPs below are what the per-node patches in `talos-patches/` will pin them to after `apply-config`. Use the DHCP IPs (check Proxmox console → Summary) for the first apply.
 
 ```bash
 export CP_IP_1=192.168.1.49
@@ -29,14 +29,17 @@ Generate the talos configurations
 talosctl gen config talos-proxmox-cluster https://${CP_IP_1}:6443 --output-dir talos --install-disk "/dev/vda" --install-image factory.talos.dev/installer/ce4c980550dd2ab1b17bbf2b08801c7eb59418eafe8f279833297925d67c7515:v1.12.5 --config-patch @talos-patch.yaml
 ```
 
-Update talos configs
+Apply per-node configs to control plane nodes. Each patch in `talos-patches/` pins the static IP for that node on `ens18`, so Talos won't drift back to DHCP after a reboot.
+
+> If the cluster is being recovered after a DHCP IP change, replace `${CP_IP_N}` below with the **current** IP of each node (check via Proxmox console → Summary). Talos will apply the config and reboot into the new static IP.
+
 ```bash
-talosctl apply-config --insecure --nodes ${CP_IP_1} --file talos/controlplane.yaml
-talosctl apply-config --insecure --nodes ${CP_IP_2} --file talos/controlplane.yaml
-talosctl apply-config --insecure --nodes ${CP_IP_3} --file talos/controlplane.yaml
+talosctl apply-config --insecure --nodes ${CP_IP_1} --file talos/controlplane.yaml --config-patch @talos-patches/controlplane-01.yaml
+talosctl apply-config --insecure --nodes ${CP_IP_2} --file talos/controlplane.yaml --config-patch @talos-patches/controlplane-02.yaml
+talosctl apply-config --insecure --nodes ${CP_IP_3} --file talos/controlplane.yaml --config-patch @talos-patches/controlplane-03.yaml
 ```
 
-Apply configs to controlplane nodes
+Set up talosctl context (endpoints/node used by subsequent commands)
 ```bash
 export TALOSCONFIG="talos/talosconfig"
 talosctl config endpoint ${CP_IP_1} ${CP_IP_2} ${CP_IP_3}
@@ -50,19 +53,14 @@ talosctl bootstrap
 
 Generate kubeconfig file
 ```bash
-talosctl kubeconfig .
+talosctl kubeconfig --force ~/.kube/config
 ```
+> Use `--force` to overwrite an existing kubeconfig (e.g., when re-running after an IP change)
 
-Move file, set as default kubeconfig
+After bootstrapping control plane nodes, add more worker nodes, VMs. Then join worker nodes to the cluster.
 ```bash
-mv kubeconfig ~/.kube/config
-```
-> If needed
-
-After bootstraping control plane nodes, add more worker nodes, VMs. Then join worker nodes to the cluster.
-```bash
-talosctl apply-config --insecure --nodes ${WK_IP_1} --file talos/worker.yaml
-talosctl apply-config --insecure --nodes ${WK_IP_2} --file talos/worker.yaml
+talosctl apply-config --insecure --nodes ${WK_IP_1} --file talos/worker.yaml --config-patch @talos-patches/worker-01.yaml
+talosctl apply-config --insecure --nodes ${WK_IP_2} --file talos/worker.yaml --config-patch @talos-patches/worker-02.yaml
 ```
 
 Install Cilium and GatewayAPI
@@ -96,4 +94,37 @@ helm install \
     --set=gatewayAPI.enabled=true \
     --set=gatewayAPI.enableAlpn=true \
     --set=gatewayAPI.enableAppProtocol=true
+```
+
+## To migrate a control-plane vm to another pve node
+
+```bash
+kubectl get nodes
+export TALOSCONFIG="talos/talosconfig"
+talosctl -n 192.168.1.49 etcd members   # check 3 members all healthy
+
+kubectl cordon talos-9kv-6hf # node name from above cmd 
+kubectl drain talos-9kv-6hf --ignore-daemonsets --delete-emptydir-data
+
+talosctl -n 192.168.1.49 etcd members
+talosctl -n 192.168.1.49 etcd remove-member 71fdd7695ea1f909 # member id from above cmd
+
+kubectl delete node talos-9kv-6hf
+
+# Update node name in terraform/proxmox/locals.tf:5:
+
+tf destroy -target='proxmox_vm_qemu.talos["controlplane-01"]'
+tfa -target='proxmox_vm_qemu.talos["controlplane-01"]'
+
+# Apply config
+export TALOSCONFIG="talos/talosconfig"
+export CP_IP_DHCP=192.168.1.50 # Adjust IP
+talosctl apply-config --insecure \
+  --nodes ${CP_IP_DHCP} \
+  --file talos/controlplane.yaml \
+  --config-patch @talos-patches/controlplane-02.yaml
+
+talosctl -n 192.168.1.49 etcd members      # ensure 3 nodes
+kubectl get nodes                          # controlplane-03 Ready
+kubectl get pods -A -o wide
 ```

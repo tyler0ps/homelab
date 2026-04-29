@@ -1,8 +1,10 @@
 resource "proxmox_vm_qemu" "talos" {
   for_each = local.talos_nodes
 
-  agent = 1
-  boot  = "order=virtio0;ide2;net0"
+  agent              = 1
+  start_at_node_boot = true
+  boot               = "order=virtio0;ide2;net0"
+
   cpu { cores = each.value.role == "worker" ? 4 : 2 }
   memory      = each.value.role == "worker" ? 16384 : 4096
   name        = each.key
@@ -21,6 +23,7 @@ resource "proxmox_vm_qemu" "talos" {
     virtio {
       virtio0 {
         disk {
+          cache   = "writeback"
           size    = each.value.disk_size
           storage = each.value.disk_storage
         }
@@ -32,5 +35,9 @@ resource "proxmox_vm_qemu" "talos" {
     bridge = "vmbr0"
     id     = 0
     model  = "virtio"
+  }
+
+  lifecycle {
+    ignore_changes = [startup_shutdown]
   }
 }
