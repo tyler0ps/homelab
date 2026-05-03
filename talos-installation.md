@@ -17,9 +17,7 @@ tf apply
 > VMs come up with DHCP IPs initially. The static IPs below are what the per-node patches in `talos-patches/` will pin them to after `apply-config`. Use the DHCP IPs (check Proxmox console → Summary) for the first apply.
 
 ```bash
-export CP_IP_1=192.168.1.49
-export CP_IP_2=192.168.1.50
-export CP_IP_3=192.168.1.46
+export CP_IP_1=192.168.1.16
 export WK_IP_1=192.168.1.47
 export WK_IP_2=192.168.1.48
 ```
@@ -29,20 +27,18 @@ Generate the talos configurations
 talosctl gen config talos-proxmox-cluster https://${CP_IP_1}:6443 --output-dir talos --install-disk "/dev/vda" --install-image factory.talos.dev/installer/ce4c980550dd2ab1b17bbf2b08801c7eb59418eafe8f279833297925d67c7515:v1.12.5 --config-patch @talos-patch.yaml
 ```
 
-Apply per-node configs to control plane nodes. Each patch in `talos-patches/` pins the static IP for that node on `ens18`, so Talos won't drift back to DHCP after a reboot.
+Apply per-node config to the control plane. The patch in `talos-patches/controlplane-01.yaml` pins the static IP on `ens18`, so Talos won't drift back to DHCP after a reboot.
 
-> If the cluster is being recovered after a DHCP IP change, replace `${CP_IP_N}` below with the **current** IP of each node (check via Proxmox console → Summary). Talos will apply the config and reboot into the new static IP.
+> If the cluster is being recovered after a DHCP IP change, replace `${CP_IP_1}` with the **current** IP of the node (check via Proxmox console → Summary). Talos will apply the config and reboot into the new static IP.
 
 ```bash
 talosctl apply-config --insecure --nodes ${CP_IP_1} --file talos/controlplane.yaml --config-patch @talos-patches/controlplane-01.yaml
-talosctl apply-config --insecure --nodes ${CP_IP_2} --file talos/controlplane.yaml --config-patch @talos-patches/controlplane-02.yaml
-talosctl apply-config --insecure --nodes ${CP_IP_3} --file talos/controlplane.yaml --config-patch @talos-patches/controlplane-03.yaml
 ```
 
 Set up talosctl context (endpoints/node used by subsequent commands)
 ```bash
 export TALOSCONFIG="talos/talosconfig"
-talosctl config endpoint ${CP_IP_1} ${CP_IP_2} ${CP_IP_3}
+talosctl config endpoint ${CP_IP_1}
 talosctl config node ${CP_IP_1}
 ```
 
@@ -96,35 +92,17 @@ helm install \
     --set=gatewayAPI.enableAppProtocol=true
 ```
 
-## To migrate a control-plane vm to another pve node
+## To migrate a Talos VM to another pve node
+
+Single CP — destroy/recreate is unsafe (loses etcd). Use Proxmox live migration instead:
 
 ```bash
-kubectl get nodes
-export TALOSCONFIG="talos/talosconfig"
-talosctl -n 192.168.1.49 etcd members   # check 3 members all healthy
+# On the source pve node — eject install ISO so the disk can migrate
+qm set <vmid> --ide2 none,media=cdrom
 
-kubectl cordon talos-9kv-6hf # node name from above cmd 
-kubectl drain talos-9kv-6hf --ignore-daemonsets --delete-emptydir-data
+# Live-migrate VM + local disk to target pve node
+qm migrate <vmid> <target-pve-node> --online --with-local-disks
 
-talosctl -n 192.168.1.49 etcd members
-talosctl -n 192.168.1.49 etcd remove-member 71fdd7695ea1f909 # member id from above cmd
-
-kubectl delete node talos-9kv-6hf
-
-# Update node name in terraform/proxmox/locals.tf:5:
-
-tf destroy -target='proxmox_vm_qemu.talos["controlplane-01"]'
-tfa -target='proxmox_vm_qemu.talos["controlplane-01"]'
-
-# Apply config
-export TALOSCONFIG="talos/talosconfig"
-export CP_IP_DHCP=192.168.1.50 # Adjust IP
-talosctl apply-config --insecure \
-  --nodes ${CP_IP_DHCP} \
-  --file talos/controlplane.yaml \
-  --config-patch @talos-patches/controlplane-02.yaml
-
-talosctl -n 192.168.1.49 etcd members      # ensure 3 nodes
-kubectl get nodes                          # controlplane-03 Ready
-kubectl get pods -A -o wide
+# Reconcile Terraform after updating target_node in terraform/proxmox/locals.tf
+cd terraform/proxmox && terraform refresh
 ```
